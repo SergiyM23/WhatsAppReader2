@@ -57,26 +57,67 @@ class WhatsAppBrowser:
 
     def open_chat(self,name):
         from selenium.webdriver.common.keys import Keys
-        field=self.driver.execute_script(js('search_box'))
-        if field is None:raise RuntimeError('WhatsApp search input was not found.')
-        field.click();field.send_keys(Keys.CONTROL,'a');field.send_keys(name)
+        from selenium.webdriver.common.action_chains import ActionChains
+
+        field = self.driver.execute_script(js('search_box'))
+        if field is None:
+            raise RuntimeError('WhatsApp search input was not found.')
+        field.click()
+        field.send_keys(Keys.CONTROL, 'a')
+        field.send_keys(name)
         time.sleep(2)
-        # Prefer an exact visible match to avoid selecting similarly named groups.
-        found=self.driver.execute_script('''
-          const wanted=arguments[0].trim().toLowerCase();
-          const pane=document.querySelector('#pane-side')||document.querySelector('#side')||document;
-          const targets=[...pane.querySelectorAll('[title]')].filter(e =>
-             (e.getAttribute('title')||'').trim().toLowerCase()===wanted &&
-             e.getBoundingClientRect().width>10);
-          if (!targets.length)return false;
-          let e=targets[0];let row=e.closest('[role="listitem"], [role="row"], [tabindex="0"]')||e;
-          row.click();return true;
-        ''',name)
-        if not found:raise RuntimeError(f'WhatsApp chat not found by exact name: {name}')
-        for _ in range(24):
-            if self.driver.execute_script('return !!document.querySelector("#main")'):return
-            time.sleep(.5)
-        raise RuntimeError('WhatsApp chat panel did not open.')
+
+        # Inspect the search result without clicking it yet.
+        # The legacy reader first sent Enter and only then tried a mouse fallback.
+        found = self.driver.execute_script(r'''
+          const wanted = String(arguments[0] || '').replace(/\s+/g, ' ').trim().toLowerCase();
+          const pane = document.querySelector('#pane-side') || document.querySelector('#side') || document;
+          return [...pane.querySelectorAll('[title]')].some(el => {
+            const r = el.getBoundingClientRect();
+            return r.width > 10 && r.height > 10 &&
+              (el.getAttribute('title') || '').replace(/\s+/g, ' ').trim().toLowerCase() === wanted;
+          });
+        ''', name)
+        if not found:
+            raise RuntimeError(f'WhatsApp chat not found by exact name: {name}')
+
+        def panel_open():
+            for _ in range(12):
+                if self.driver.execute_script('return !!document.querySelector("#main")'):
+                    return True
+                time.sleep(.5)
+            return False
+
+        # Primary strategy: native keyboard Enter, as in Common.ps1.
+        ActionChains(self.driver).send_keys(Keys.ENTER).perform()
+        if panel_open():
+            return
+
+        # Fallback: mouse-like event sequence on the matching result.
+        self.driver.execute_script(r'''
+          const wanted = String(arguments[0] || '').replace(/\s+/g, ' ').trim().toLowerCase();
+          const pane = document.querySelector('#pane-side') || document.querySelector('#side') || document;
+          const target = [...pane.querySelectorAll('[title]')].find(el =>
+            (el.getAttribute('title') || '').replace(/\s+/g, ' ').trim().toLowerCase() === wanted &&
+            el.getBoundingClientRect().width > 10
+          );
+          if (!target) return false;
+          let clickable = target;
+          for (let i = 0; i < 8 && clickable && clickable !== pane; i++, clickable = clickable.parentElement) {
+            const role = clickable.getAttribute?.('role');
+            const tab = clickable.getAttribute?.('tabindex');
+            if (role === 'listitem' || role === 'row' || role === 'gridcell' || tab === '0') break;
+          }
+          if (!clickable || clickable === pane) clickable = target;
+          clickable.scrollIntoView({block: 'center', inline: 'nearest'});
+          const opts = {bubbles: true, cancelable: true, view: window};
+          for (const type of ['pointerdown', 'mousedown', 'mouseup', 'click'])
+            clickable.dispatchEvent(new MouseEvent(type, opts));
+          return true;
+        ''', name)
+        if panel_open():
+            return
+        raise RuntimeError('WhatsApp chat panel did not open after Enter and click fallback.')
 
     def snapshot(self):return self.driver.execute_script(js('history_snapshot'))
     def read_batch(self,limit):return self.driver.execute_script(js('read_messages'),limit) or []

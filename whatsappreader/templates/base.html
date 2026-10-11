@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhatsAppReader — {{ title|default('Console') }}</title>
+<style>
+:root{font:15px system-ui,-apple-system,sans-serif;color:#192536;background:#f5f7fb}
+*{box-sizing:border-box}body{margin:0}header{background:#15243a;color:white;padding:16px 22px;display:flex;align-items:center;gap:26px;flex-wrap:wrap}header strong{font-size:19px}nav{display:flex;gap:18px;flex-wrap:wrap}nav a{color:#d6e2f4;text-decoration:none}nav a:hover{text-decoration:underline}
+main{max-width:1200px;margin:30px auto;padding:0 20px}.card{background:white;border:1px solid #e2e7ee;border-radius:12px;padding:20px;margin:14px 0;box-shadow:0 1px 3px #142b3e12}h1{font-size:26px;margin:0 0 20px}h2{font-size:18px}small,.muted{color:#607187}.status{font-size:33px;font-weight:800;letter-spacing:.035em}.ok{color:#15754b}.err{color:#b3261e}.idle{color:#4c617b}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:15px}.button{border:0;background:#2165bb;color:white;padding:11px 17px;border-radius:8px;cursor:pointer;font-weight:600;text-decoration:none;display:inline-block}.button.secondary{background:#e7edf5;color:#203a58}.button:hover{filter:brightness(.92)}input,textarea{font:inherit;padding:9px;border:1px solid #cfd9e5;border-radius:6px;width:100%}textarea{min-height:460px;font:13px/1.5 ui-monospace,monospace;tab-size:2}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#102033;color:#dceafb;border-radius:8px;padding:15px}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.logs{min-height:400px;max-height:72vh;overflow:auto}table{border-collapse:collapse;width:100%}th,td{text-align:left;border-bottom:1px solid #e0e7ef;padding:9px;vertical-align:top}td.text{max-width:440px;white-space:pre-wrap;overflow-wrap:anywhere}.meta{font-size:12px;color:#66768a}
+</style></head><body><header><strong>WhatsAppReader 2.0</strong><nav>
+<a href="/whatsappreader/">Dashboard</a><a href="/whatsappreader/results">Results</a>
+<a href="/whatsappreader/logs">Logs</a><a href="/whatsappreader/config">Configuration</a>
+<a href="/whatsappreader/session">WhatsApp Session</a><a href="/whatsappreader/browser">Browser</a>
+</nav></header><main>{% block content %}{% endblock %}</main></body></html>

@@ -1,0 +1,5 @@
+{% extends 'base.html' %}{% block content %}<h1>Browser Maintenance</h1><div class="card">
+<p>Chromium and ChromeDriver are managed by Ubuntu/Snap. Compatibility tests run only on demand.</p>
+<p>Chromium: <code>{{ config.browser_binary }}</code><br>ChromeDriver: <code>{{ config.driver_binary }}</code></p>
+<form action="/whatsappreader/browser/test" method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="button">Test Browser Compatibility</button></form>
+{% if result %}<pre>{{ result }}</pre>{% endif %}</div>{% endblock %}

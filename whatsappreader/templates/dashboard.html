@@ -1,0 +1,20 @@
+{% extends 'base.html' %}{% block content %}
+<h1>Dashboard</h1>
+<div class="card">
+{% if running %}<div class="status ok">● RUNNING</div>
+<p>Run #{{ running.id }} · Current stage: <strong>{{ running.stage }}</strong> · Started: {{ running.started_at|madrid_time }}</p>
+<a class="button" href="/whatsappreader/logs?run_id={{ running.id }}">View Live Logs</a>
+{% else %}<div class="status {{ 'err' if last and last.status=='FAILED' else 'idle' }}">{{ 'LAST RUN FAILED' if last and last.status=='FAILED' else 'IDLE' }}</div>
+<p><strong>Last run:</strong> {{ (last.started_at|madrid_time) if last else 'Never' }} · <strong>Status:</strong> {{ last.status if last else 'N/A' }}</p>
+<p><strong>Next scheduled run:</strong> {{ next_time }}</p>
+<form action="/whatsappreader/run" method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="button">Run Now</button></form>
+{% endif %}
+</div>
+<div class="grid"><div class="card"><h2>Configured WhatsApp group</h2><p>{{ settings.group_name or 'Not configured' }}</p></div>
+<div class="card"><h2>Schedule</h2><p>{{ settings.schedule }}</p></div></div>
+<div class="card"><h2>Recent Runs</h2><table><tr><th>ID</th><th>Started (Madrid)</th><th>Status</th><th>Stage</th><th>Log</th><th>Report</th></tr>
+{% for r in runs %}<tr><td>#{{ r.id }}</td><td>{{ r.started_at|madrid_time }}</td><td>{{ r.status }}</td><td>{{ r.stage }}</td>
+<td><a href="/whatsappreader/logs?run_id={{ r.id }}">View</a></td>
+<td>{% if r.report_path %}<a href="/whatsappreader/report/{{ r.id }}">Download</a>{% endif %}</td></tr>{% endfor %}</table></div>
+<script>if ({{ 'true' if running else 'false' }}) setTimeout(()=>location.reload(),5000);</script>
+{% endblock %}

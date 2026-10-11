@@ -1,0 +1,9 @@
+# Machine-local deployment settings. Edit using the server CLI, not the web console.
+data_dir: /opt/whatsappreader/data
+logs_dir: /opt/whatsappreader/logs
+browser_binary: /usr/bin/chromium-browser
+driver_binary: /usr/bin/chromedriver
+browser_profile: /home/ubuntu/snap/chromium/common/whatsapp-profile
+qr_screenshot: /var/www/whatsapp-qr/whatsapp-live.png
+web_host: 127.0.0.1
+web_port: 8765

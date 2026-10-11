@@ -1,0 +1,12 @@
+{% extends 'base.html' %}{% block content %}<h1>Run Logs</h1>
+<form method="get"><select name="run_id" onchange="this.form.submit()" style="max-width:400px;padding:9px">
+{% for r in runs %}<option value="{{ r.id }}" {{ 'selected' if r.id==run_id else '' }}>Run #{{ r.id }} · {{ r.started_at|madrid_time }} · {{ r.status }}</option>{% endfor %}
+</select></form><div class="card"><pre class="logs" id="log">{% for row in rows %}{{ row.created_at }} [{{ row.level }}] {{ row.component }} — {{ row.message }}
+{% endfor %}</pre></div>
+<script>
+const run={{ run_id }};const log=document.getElementById('log');
+if(run){const source=new EventSource('/whatsappreader/logs/stream/'+run);let newest={{ rows[-1].id if rows else 0 }};
+source.onmessage=(event)=>{const r=JSON.parse(event.data);if(r.id<=newest)return;newest=r.id;
+log.textContent+=`${r.created_at} [${r.level}] ${r.component} — ${r.message}\n`;log.scrollTop=log.scrollHeight;};
+source.addEventListener('finished',()=>source.close());}
+</script>{% endblock %}

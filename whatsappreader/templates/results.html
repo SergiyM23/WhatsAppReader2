@@ -1,0 +1,6 @@
+{% extends 'base.html' %}{% block content %}<h1>Analysis Results</h1>
+<form method="get" class="row"><label>Date (UTC): <input type="date" name="day" value="{{ day }}"></label><button class="button">Filter</button><a class="button secondary" href="/whatsappreader/results">All</a></form>
+<div class="card"><table><tr><th>When</th><th>Author / Message</th><th>Result</th><th>Score / Reason</th></tr>
+{% for r in rows %}<tr><td>{{ r.message_date }} {{ r.message_time }}</td><td class="text"><strong>{{ r.author }}</strong><br>{{ r.text }}{% if r.image_path %}<p><a href="/whatsappreader/image/{{ r.key }}" target="_blank">View image</a></p>{% endif %}</td>
+<td>{{ r.analysis_status }}</td><td>{{ r.score if r.score is not none else '—' }}<br>{{ r.reason or r.analysis_error or '' }}</td></tr>
+{% endfor %}</table>{% if not rows %}<p>No results found.</p>{% endif %}</div>{% endblock %}

@@ -1,0 +1,26 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+app.yaml
+.env
+*.db
+*.db-shm
+*.db-wal
+/data/
+/logs/
+/reports/
+/images/
+
+# Extra safeguards for a public repository (review staged files before pushing)
+*.sqlite
+*.sqlite3
+*.log
+*.bak
+*.backup
+*.pem
+*.key
+*.p12
+*.pfx
+*.zip
+/config.json

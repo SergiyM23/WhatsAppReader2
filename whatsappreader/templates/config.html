@@ -1,0 +1,31 @@
+{% extends 'base.html' %}{% block content %}
+<h1>Configuration</h1><div class="card"><p class="muted">Changes are validated, saved in SQLite and applied to the next run. Secrets remain outside the web editor.</p>
+{% if message %}<p><strong>{{ message }}</strong></p>{% endif %}</div>
+<form action="/whatsappreader/config/fields" method="post"><input type="hidden" name="csrf" value="{{ csrf }}">
+{% for heading,keys in groups.items() %}
+<section class="card"><h2>{{ heading }}</h2>
+{% if heading == "Gemini" %}<p class="muted">Topic and prompts are stored in SQLite, not in source code. Write prompts in any language. Use {topic}, {author}, {date}, {time}, and {text} placeholders as needed.</p>{% endif %}
+<div class="grid">
+{% for key in keys %}{% set val = settings[key] %}
+<div><label for="{{ key }}"><strong>{{ key.replace('_',' ').title() }}</strong></label>
+{% if key in ('gemini_text_prompt','gemini_image_prompt','topic') %}
+<textarea id="{{ key }}" name="{{ key }}" style="min-height:{{ 230 if 'prompt' in key else 115 }}px">{{ val }}</textarea>
+{% elif key=='telegram_notification_mode' %}
+<select id="{{ key }}" name="{{ key }}" style="padding:10px;width:100%;border:1px solid #cfd9e5;border-radius:6px">
+{% for mode in ('ALWAYS','ONLY_IF_NEW','ONLY_IF_RELEVANT','NEVER') %}
+<option value="{{ mode }}" {{ 'selected' if val==mode else '' }}>{{ mode }}</option>{% endfor %}
+</select>
+{% elif val is sameas true or val is sameas false %}
+<p><label><input type="checkbox" style="width:auto" id="{{ key }}" name="{{ key }}" {{ 'checked' if val else '' }}> Enabled</label></p>
+{% elif val is number %}
+<input id="{{ key }}" name="{{ key }}" type="number" min="0" value="{{ val }}">
+{% else %}<input id="{{ key }}" name="{{ key }}" type="text" value="{{ val }}">{% endif %}
+</div>
+{% endfor %}</div></section>
+{% endfor %}
+<p><button class="button">Validate & Save Settings</button></p></form>
+<details class="card"><summary><strong>Advanced: raw JSON configuration</strong></summary>
+<p class="muted">For advanced users. Editing this JSON replaces the supplied settings; unknown keys are rejected.</p>
+<form action="/whatsappreader/config" method="post"><input type="hidden" name="csrf" value="{{ csrf }}">
+<textarea name="config_text" spellcheck="false">{{ config_text }}</textarea><p><button class="button secondary">Validate & Save JSON</button></p></form>
+</details>{% endblock %}

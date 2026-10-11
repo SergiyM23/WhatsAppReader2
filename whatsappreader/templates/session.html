@@ -1,0 +1,7 @@
+{% extends 'base.html' %}{% block content %}<h1>WhatsApp Session</h1><div class="card">
+<h2>Login / Recovery</h2><p>Last login operation: <strong>{{ state }}</strong></p>
+<p>Uses the existing persistent Chromium profile and the protected QR page.</p>
+<form action="/whatsappreader/session/login" method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="button">Start QR Login</button></form>
+<p><a class="button secondary" target="_blank" rel="noopener noreferrer" href="/whatsapp-qr/">Open QR Page</a></p>
+<p class="muted">QR login and WhatsApp collection cannot use the browser profile simultaneously.</p></div>
+{% endblock %}

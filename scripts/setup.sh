@@ -120,8 +120,13 @@ fi
 nginx -t && systemctl reload nginx
 cd "$TARGET"
 sudo -u "$APP_USER" env WA_READER_CONFIG="$TARGET/app.yaml" "$TARGET/.venv/bin/python" -m whatsappreader init
-/usr/local/sbin/whatsappreader-apply-schedule
+# Keep scheduled processing disabled during initial installation.
 systemctl daemon-reload
+if [[ "${WA_ENABLE_TIMER:-0}" == "1" ]]; then
+    /usr/local/sbin/whatsappreader-apply-schedule
+else
+    echo "Scheduler not activated. Configure the application first."
+fi
 systemctl enable --now whatsappreader-web.service
 echo 'WhatsAppReader deployed: /whatsappreader/ (HTTPS, Basic Auth)'
 echo 'Edit GEMINI_API_KEY and TELEGRAM_BOT_TOKEN in /etc/whatsappreader.env; restart web service after secret changes.'

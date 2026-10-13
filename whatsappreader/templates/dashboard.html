@@ -2,7 +2,7 @@
 <h1>Dashboard</h1>
 <div class="card">
 {% if running %}<div class="status ok">● RUNNING</div>
-<p>Run #{{ running.id }} · Current stage: <strong>{{ running.stage }}</strong> · Started: {{ running.started_at|madrid_time }}</p>
+<p>Run #{{ running.id }} · Current stage: <strong id="current-stage">{{ running.stage }}</strong> · Started: {{ running.started_at|madrid_time }}</p>
 <a class="button" href="/whatsappreader/logs?run_id={{ running.id }}">View Live Logs</a>
 {% else %}<div class="status {{ 'err' if last and last.status=='FAILED' else 'idle' }}">{{ 'LAST RUN FAILED' if last and last.status=='FAILED' else 'IDLE' }}</div>
 <p><strong>Last run:</strong> {{ (last.started_at|madrid_time) if last else 'Never' }} · <strong>Status:</strong> {{ last.status if last else 'N/A' }}</p>
@@ -16,5 +16,43 @@
 {% for r in runs %}<tr><td>#{{ r.id }}</td><td>{{ r.started_at|madrid_time }}</td><td>{{ r.status }}</td><td>{{ r.stage }}</td>
 <td><a href="/whatsappreader/logs?run_id={{ r.id }}">View</a></td>
 <td>{% if r.report_path %}<a href="/whatsappreader/report/{{ r.id }}">Download</a>{% endif %}</td></tr>{% endfor %}</table></div>
-<script>if ({{ 'true' if running else 'false' }}) setTimeout(()=>location.reload(),5000);</script>
+<script>
+// Keep the dashboard current without continuously reloading the page.
+// In particular, a manual run may start *after* the POST redirect has rendered IDLE.
+(() => {
+  const initial = {{ {
+    'running_id': running.id if running else none,
+    'last_id': last.id if last else none,
+    'last_status': last.status if last else none
+  } | tojson }};
+  let checking = false;
+
+  async function checkRunStatus() {
+    if (document.hidden || checking) return;
+    checking = true;
+    try {
+      const response = await fetch('/whatsappreader/status', {cache: 'no-store'});
+      if (!response.ok) return;
+      const state = await response.json();
+      if (state.running_id !== initial.running_id ||
+          state.last_id !== initial.last_id ||
+          state.last_status !== initial.last_status) {
+        location.reload();
+        return;
+      }
+      const stage = document.getElementById('current-stage');
+      if (stage && state.running_stage) stage.textContent = state.running_stage;
+    } catch (_) {
+      // A temporary network failure must not break the dashboard.
+    } finally {
+      checking = false;
+    }
+  }
+
+  setInterval(checkRunStatus, 2500);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkRunStatus();
+  });
+})();
+</script>
 {% endblock %}

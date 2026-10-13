@@ -45,13 +45,19 @@ class WhatsAppBrowser:
         return bool(self.driver.execute_script('return !!(document.querySelector("#pane-side") || document.querySelector("#side"));'))
 
     def wait_ready(self,seconds=90):
-        deadline=time.monotonic()+seconds
+        started=time.monotonic()
+        deadline=started+seconds
+        last_progress=started
         while time.monotonic()<deadline:
             try:
                 if self.is_authenticated():
                     dismiss_popup(self.driver)
                     return True
             except Exception:pass
+            now=time.monotonic()
+            if now-last_progress>=10:
+                self.log.info('Waiting for WhatsApp Web: %ds elapsed...',int(now-started))
+                last_progress=now
             time.sleep(1)
         return False
 
@@ -80,6 +86,7 @@ class WhatsAppBrowser:
         ''', name)
         if not found:
             raise RuntimeError(f'WhatsApp chat not found by exact name: {name}')
+        self.log.info('Chat found in search results. Opening conversation...')
 
         def panel_open():
             for _ in range(12):
@@ -93,6 +100,7 @@ class WhatsAppBrowser:
         if panel_open():
             return
 
+        self.log.info('Chat did not open with Enter; trying mouse fallback...')
         # Fallback: mouse-like event sequence on the matching result.
         self.driver.execute_script(r'''
           const wanted = String(arguments[0] || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -143,6 +151,7 @@ class WhatsAppBrowser:
 
     def latest(self,max_attempts=200):
         last=''; stable=0
+        last_progress=time.monotonic()
         for attempt in range(max_attempts):
             result,native=self.scroll(1)
             if not result.get('success') and not native:raise RuntimeError('Failed to scroll to latest WhatsApp message.')
@@ -152,12 +161,16 @@ class WhatsAppBrowser:
             else:stable=0
             if stable>=2:return current
             last=current
+            if time.monotonic()-last_progress>=10:
+                self.log.info('Navigating to latest messages: %d scroll attempts...',attempt+1)
+                last_progress=time.monotonic()
         raise RuntimeError('Latest WhatsApp message was not reached within safety limit.')
 
     def scroll_up_to(self,message,max_scrolls):
         args=(message['metadata'],message['text'])
         if self.driver.execute_script(js('message_visible'),*args):return True
-        for _ in range(max_scrolls):
+        last_progress=time.monotonic()
+        for attempt in range(max_scrolls):
             before=self.snapshot()
             self.scroll(-1);time.sleep(.9)
             if self.driver.execute_script(js('message_visible'),*args):return True
@@ -165,6 +178,9 @@ class WhatsAppBrowser:
             if (before.get('earliest'),before.get('latest'))==(after.get('earliest'),after.get('latest')):
                 self.wheel(-1,1800);time.sleep(.9)
                 if self.driver.execute_script(js('message_visible'),*args):return True
+            if time.monotonic()-last_progress>=10:
+                self.log.info('Locating image message: %d scroll attempts...',attempt+1)
+                last_progress=time.monotonic()
         return False
 
     def screenshot_message(self,message,destination,max_scrolls):

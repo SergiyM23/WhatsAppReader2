@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from fastapi import FastAPI,Depends,Form,HTTPException,Request
-from fastapi.responses import HTMLResponse,RedirectResponse,StreamingResponse,FileResponse
+from fastapi.responses import HTMLResponse,RedirectResponse,StreamingResponse,FileResponse,JSONResponse
 from fastapi.security import HTTPBasic,HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from .settings import data_path,deployment,DEFAULTS
@@ -67,6 +67,20 @@ def dashboard(request:Request,user=Depends(authorized)):
     runs=store.recent_runs(10)
     return page(request,'dashboard.html',running=store.running(),runs=runs,
                 last=runs[0] if runs else None,next_time=next_run(),settings=store.settings())
+
+@app.get('/whatsappreader/status')
+def dashboard_status(user=Depends(authorized)):
+    """Provide lightweight polling data without reloading the whole dashboard."""
+    store=db()
+    running=store.running()
+    recent=store.recent_runs(1)
+    last=recent[0] if recent else None
+    return JSONResponse({
+        'running_id': running['id'] if running else None,
+        'running_stage': running['stage'] if running else None,
+        'last_id': last['id'] if last else None,
+        'last_status': last['status'] if last else None,
+    },headers={'Cache-Control':'no-store'})
 
 @app.post('/whatsappreader/run')
 def manual_run(csrf:str=Form(...),user=Depends(authorized)):

@@ -73,26 +73,41 @@ def classify(message,cfg):
     return result
 
 
+def _message_label(message, index, total):
+    """Identify a message without exposing its long internal hash in routine logs."""
+    date = ' '.join(str(message.get('message_date') or '').split())
+    time = ' '.join(str(message.get('message_time') or '').split())
+    when = f'{date} {time}'.strip() or 'Unknown date'
+    author = ' '.join(str(message.get('author') or '').split())
+    if not author:
+        author = 'You' if message.get('direction') == 'out' else 'Unknown author'
+    return f'[{index}/{total}] {when} | {author}'
+
+
 def analyze_pending(store,run_id,cfg,logger):
     """Run through pending messages once; terminal errors stop this orchestrator run."""
     if not cfg['topic'].strip():raise RuntimeError('Gemini topic is not configured.')
     pending=store.pending()
+    logger.info('Gemini analysis queue: %d pending message(s).',len(pending))
     processed=relevant=blocked=0
     in_window=0
-    for message in pending:
+    for index,message in enumerate(pending,start=1):
         key=message['key']
+        label=_message_label(message,index,len(pending))
         if message['has_image'] and (not message.get('image_path') or not Path(message['image_path']).is_file()):
             store.analyze(key,run_id,'image_missing',error=message.get('image_error') or 'Image screenshot missing.')
-            logger.warning('Image missing after %s capture attempt(s) for message %s.',message['image_attempts'],key)
+            logger.warning('%s -> image_missing (%s capture attempt(s)).',label,message['image_attempts'])
             processed+=1
             continue
         if not message['has_image'] and not message['text'].strip():
             store.analyze(key,run_id,'empty_message')
+            logger.info('%s -> empty_message',label)
             processed+=1
             continue
         done=False
         for attempt in range(1,cfg['gemini_max_attempts']+1):
             if in_window>=cfg['gemini_requests_per_minute']:
+                logger.info('Gemini rate-limit pause: waiting %ds...',cfg['gemini_rate_limit_wait_seconds'])
                 time.sleep(cfg['gemini_rate_limit_wait_seconds']);in_window=0
             in_window+=1
             try:
@@ -100,15 +115,16 @@ def analyze_pending(store,run_id,cfg,logger):
                 status='relevant' if result['relevant'] and result['score']>=cfg['relevance_threshold'] else 'not_relevant'
                 store.analyze(key,run_id,status,result=result)
                 processed+=1;relevant+=int(status=='relevant');done=True
-                logger.info('Gemini classified message %s: %s, score=%d.',key,status,result['score'])
+                logger.info('%s -> %s, score %d',label,status,result['score'])
                 break
             except ModelBlocked as exc:
                 store.analyze(key,run_id,'model_blocked',error=str(exc))
-                logger.warning('Gemini blocked message %s: %s',key,exc)
+                logger.warning('%s -> model_blocked: %s',label,exc)
                 processed+=1;blocked+=1;done=True
                 break
             except Exception as exc:
-                logger.warning('Gemini attempt %d/%d failed for %s: %s',attempt,cfg['gemini_max_attempts'],key,exc)
+                logger.warning('%s -> Gemini attempt %d/%d failed: %s',
+                               label,attempt,cfg['gemini_max_attempts'],exc)
                 if attempt>=cfg['gemini_max_attempts']:
                     # Leave message PENDING_AI, stop the run, notify via orchestrator.
                     store.record_api_error(key,run_id,str(exc))

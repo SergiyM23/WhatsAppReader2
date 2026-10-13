@@ -57,3 +57,43 @@ def test_web_form_updates_prompts_in_sqlite(tmp_path, monkeypatch):
     assert config['gemini_image_prompt'] == form['gemini_image_prompt']
     with store.connect() as con:
         assert con.execute('SELECT count(*) FROM settings_history').fetchone()[0] == 1
+
+
+def test_dashboard_status_polling(tmp_path, monkeypatch):
+    from whatsappreader import web
+
+    store = Store(tmp_path / 'status.sqlite')
+    store.initialize()
+    monkeypatch.setattr(web, 'db', lambda: store)
+    monkeypatch.setenv('WA_ADMIN_USER', 'admin')
+    monkeypatch.setenv('WA_ADMIN_PASSWORD', 'a-long-admin-password')
+    auth = ('admin', 'a-long-admin-password')
+    client = TestClient(app)
+
+    assert client.get('/whatsappreader/status').status_code == 401
+    initial = client.get('/whatsappreader/status', auth=auth)
+    assert initial.status_code == 200
+    assert initial.json() == {
+        'running_id': None, 'running_stage': None,
+        'last_id': None, 'last_status': None,
+    }
+    assert initial.headers['cache-control'] == 'no-store'
+
+    run_id = store.start_run('manual', store.settings())
+    monkeypatch.setattr(store, 'running', lambda: {'id': run_id, 'stage': 'WHATSAPP'})
+    active = client.get('/whatsappreader/status', auth=auth).json()
+    assert active['running_id'] == run_id
+    assert active['running_stage'] == 'WHATSAPP'
+    assert active['last_id'] == run_id
+    assert active['last_status'] == 'RUNNING'
+
+    monkeypatch.setattr(store, 'running', lambda: None)
+    store.finish_run(run_id, 'SUCCESS')
+    done = client.get('/whatsappreader/status', auth=auth).json()
+    assert done['running_id'] is None
+    assert done['last_id'] == run_id
+    assert done['last_status'] == 'SUCCESS'
+
+    html = client.get('/whatsappreader/', auth=auth).text
+    assert "fetch('/whatsappreader/status'" in html
+    assert 'setInterval(checkRunStatus, 2500)' in html

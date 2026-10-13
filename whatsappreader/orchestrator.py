@@ -33,15 +33,19 @@ def execute(trigger='scheduled',store=None,collector_fn=None,analyzer_fn=None):
         try:
             log.info('WhatsAppReader run #%d started (%s).',run_id,trigger)
             stage='WHATSAPP';store.stage(run_id,stage)
+            log.info('Starting WhatsApp collection...')
             retry_stage('WhatsApp collection',cfg['collector_max_attempts'],cfg['retry_delay_seconds'],log,
                         lambda:(collector_fn or collector.collect)(store,run_id,cfg,log))
             stage='GEMINI';store.stage(run_id,stage)
+            log.info('Starting Gemini analysis...')
             stats=(analyzer_fn or gemini.analyze_pending)(store,run_id,cfg,log)
             stage='REPORT';store.stage(run_id,stage)
+            log.info('Generating report...')
             report_path=str(retry_stage('Report generation',cfg['report_max_attempts'],
                                         cfg['retry_delay_seconds'],log,lambda:reports.generate(store,run_id,cfg)))
             log.info('Generated report: %s',report_path)
             stage='TELEGRAM';store.stage(run_id,stage)
+            log.info('Sending Telegram results notification...')
             try:telegram.send_results(cfg,stats,log)
             except Exception as exc:
                 # A failed normal Telegram delivery should not invalidate processed results.
@@ -53,6 +57,7 @@ def execute(trigger='scheduled',store=None,collector_fn=None,analyzer_fn=None):
             telegram.send_failure(cfg,run_id,stage,exc,log)
         finally:
             store.stage(run_id,'CLEANUP')
+            log.info('Starting cleanup...')
             try:cleanup.cleanup(store,cfg,log)
             except Exception as exc:
                 log.exception('Cleanup failed: %s',exc)
